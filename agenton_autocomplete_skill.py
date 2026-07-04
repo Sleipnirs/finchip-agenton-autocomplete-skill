@@ -390,9 +390,66 @@ def navigate_to_account_and_find_uid(page, evidence_dir: str) -> Tuple[Optional[
     return None, attempts
 
 
+
+def capture_existing_solulu_uid(page, cfg: AutoCompleteConfig, reason: str = "already_logged_in_or_registration_form_unavailable") -> Dict[str, Any]:
+    """Extract UID from an already logged-in Solulu session.
+
+    This is important when the browser state already contains a successful Solulu
+    login/registration. In that case /register may redirect to the app dashboard,
+    where the Send OTP button is no longer present. The correct action is not to
+    fail the Skill, but to navigate to Account / Personal Center and extract UID.
+    """
+    try:
+        page.goto(SOLULU_HOME_URL, wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(1800)
+    except Exception:
+        pass
+
+    uid, uid_attempts = navigate_to_account_and_find_uid(page, cfg.evidence_dir)
+    solulu_screenshot = str(ensure_dir(cfg.solulu_screenshot_path))
+    page.screenshot(path=solulu_screenshot, full_page=True)
+
+    return {
+        "register_url": SOLULU_REGISTER_URL,
+        "email": redact(cfg.email),
+        "registration_skipped": True,
+        "skip_reason": reason,
+        "uid": uid,
+        "uid_found": uid is not None,
+        "uid_navigation_attempts": uid_attempts,
+        "solulu_screenshot_path": solulu_screenshot,
+        "debug_artifacts": None if uid else {
+            "text_path": f"{cfg.evidence_dir}/solulu_account_debug.txt",
+            "html_path": f"{cfg.evidence_dir}/solulu_account_debug.html"
+        },
+    }
+
 def complete_solulu_registration(page, cfg: AutoCompleteConfig) -> Dict[str, Any]:
     page.goto(SOLULU_REGISTER_URL, wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(1200)
+    page.wait_for_timeout(1800)
+
+    # If a previous run already registered/logged in, /register may redirect to the
+    # logged-in dashboard. In that state there is no Send OTP button. Treat this as
+    # a valid continuation and extract UID from Account instead of failing.
+    send_visible = False
+    for selector in [
+        'text=/^Send$/i',
+        'button:has-text("Send")',
+        '[role="button"]:has-text("Send")',
+    ]:
+        try:
+            page.locator(selector).first.wait_for(state="visible", timeout=900)
+            send_visible = True
+            break
+        except Exception:
+            continue
+
+    if not send_visible:
+        return capture_existing_solulu_uid(
+            page,
+            cfg,
+            reason="send_button_not_visible_after_opening_register; likely already logged in or redirected away from register form"
+        )
 
     filled_email_selector = fill_first_available(page, [
         'input[placeholder*="email" i]',
@@ -401,11 +458,18 @@ def complete_solulu_registration(page, cfg: AutoCompleteConfig) -> Dict[str, Any
         'input:first-of-type',
     ], cfg.email)
 
-    send_clicked = click_first_available(page, [
-        'text=/^Send$/i',
-        'button:has-text("Send")',
-        '[role="button"]:has-text("Send")',
-    ])
+    try:
+        send_clicked = click_first_available(page, [
+            'text=/^Send$/i',
+            'button:has-text("Send")',
+            '[role="button"]:has-text("Send")',
+        ])
+    except SkillError:
+        return capture_existing_solulu_uid(
+            page,
+            cfg,
+            reason="unable_to_click_send_after_email_fill; likely already logged in or register form changed"
+        )
 
     otp = cfg.otp
     otp_source = "input_or_env"
@@ -538,7 +602,7 @@ def mode_plan() -> Dict[str, Any]:
     return {
         "ok": True,
         "skill": "agenton-solulu-quest-autocomplete",
-        "version": "0.2.1",
+        "version": "0.2.2",
         "mode": "plan",
         "quests": {
             "telegram_join": {
@@ -568,7 +632,7 @@ def mode_partner_api_status() -> Dict[str, Any]:
     return {
         "ok": True,
         "skill": "agenton-solulu-quest-autocomplete",
-        "version": "0.2.1",
+        "version": "0.2.2",
         "mode": "partner_api_status",
         "partner_api": {
             "referenced_in_source_md": True,
@@ -599,7 +663,7 @@ def mode_auto_complete(data: Dict[str, Any]) -> Dict[str, Any]:
         result: Dict[str, Any] = {
             "ok": True,
             "skill": "agenton-solulu-quest-autocomplete",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "mode": "auto_complete",
             "tasks": {},
         }
@@ -639,6 +703,34 @@ def main() -> None:
             result = mode_partner_api_status()
         elif mode == "auto_complete":
             result = mode_auto_complete(data)
+        elif mode == "extract_uid":
+            # UID-only recovery mode for an existing logged-in browser profile.
+            cfg = build_config(data)
+            sync_playwright, PlaywrightTimeoutError = import_playwright()
+            Path(cfg.browser_state_dir).mkdir(parents=True, exist_ok=True)
+            Path(cfg.evidence_dir).mkdir(parents=True, exist_ok=True)
+            with sync_playwright() as p:
+                context = p.chromium.launch_persistent_context(
+                    user_data_dir=cfg.browser_state_dir,
+                    headless=cfg.headless,
+                    viewport={"width": 1365, "height": 900},
+                    args=["--no-sandbox", "--disable-dev-shm-usage"],
+                )
+                page = context.pages[0] if context.pages else context.new_page()
+                solulu = capture_existing_solulu_uid(page, cfg, reason="extract_uid_mode")
+                context.close()
+            result = {
+                "ok": True,
+                "skill": "agenton-solulu-quest-autocomplete",
+                "version": "0.2.2",
+                "mode": "extract_uid",
+                "tasks": {"solulu_register": solulu},
+                "submission": {
+                    "solulu_uid": solulu.get("uid"),
+                    "solulu_screenshot_path": solulu.get("solulu_screenshot_path"),
+                    "ready_for_agenton_submission": bool(solulu.get("uid")),
+                },
+            }
         else:
             raise SkillError(f"Unsupported mode: {mode}")
         print(json.dumps(result, ensure_ascii=False, indent=2))

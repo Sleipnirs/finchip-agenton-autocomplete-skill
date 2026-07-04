@@ -1,6 +1,6 @@
 {
   "name": "agenton-solulu-quest-autocomplete",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A callable Skill that automates the legitimate AgentOn Solulu quest flow: join the Solulu Telegram community with an authorized browser session, register a Solulu account via OTP, capture evidence, and return the Solulu UID.",
   "entrypoint": "agenton_autocomplete_skill.py",
   "runtime": {
@@ -31,7 +31,7 @@
     "properties": {
       "mode": {
         "type": "string",
-        "enum": ["plan", "auto_complete", "partner_api_status"]
+        "enum": ["plan", "auto_complete", "extract_uid", "partner_api_status"]
       },
       "email": { "type": "string" },
       "password": { "type": "string" },

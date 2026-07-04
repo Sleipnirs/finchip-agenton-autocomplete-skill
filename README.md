@@ -77,13 +77,24 @@ The Skill captures Solulu UID evidence at:
 ./evidence/solulu_uid.png
 ```
 
+
+## UID-only recovery mode
+
+If the first run registered/logged in successfully but landed on the Assets page, rerun UID extraction without repeating OTP registration:
+
+```bash
+echo '{"mode":"extract_uid","email":"your-email@example.com","password":"Use-A-Strong-Password-123!","headless":true,"browser_state_dir":"./.browser-state","evidence_dir":"./evidence"}' | python3 agenton_autocomplete_skill.py
+```
+
+This mode reuses the persistent browser profile, opens Solulu, clicks Account / Personal Center, captures `./evidence/solulu_uid.png`, and returns the UID if found.
+
 ## Expected output
 
 ```json
 {
   "ok": true,
   "skill": "agenton-solulu-quest-autocomplete",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "mode": "auto_complete",
   "tasks": {
     "telegram_join": {

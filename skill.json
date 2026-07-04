@@ -1,0 +1,67 @@
+{
+  "name": "agenton-solulu-quest-autocomplete",
+  "version": "0.2.0",
+  "description": "A callable Skill that automates the legitimate AgentOn Solulu quest flow: join the Solulu Telegram community with an authorized browser session, register a Solulu account via OTP, capture evidence, and return the Solulu UID.",
+  "entrypoint": "agenton_autocomplete_skill.py",
+  "runtime": {
+    "type": "python",
+    "python": ">=3.10",
+    "command": "python3 agenton_autocomplete_skill.py",
+    "dependencies": "requirements.txt"
+  },
+  "permissions": {
+    "network": true,
+    "browser_automation": true,
+    "filesystem_write": ["./evidence", "./.browser-state"],
+    "environment_variables": [
+      "SOLULU_EMAIL",
+      "SOLULU_PASSWORD",
+      "SOLULU_OTP",
+      "IMAP_HOST",
+      "IMAP_USER",
+      "IMAP_PASSWORD",
+      "IMAP_MAILBOX",
+      "OTP_REGEX",
+      "HEADLESS",
+      "BROWSER_STATE_DIR"
+    ]
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": ["plan", "auto_complete", "partner_api_status"]
+      },
+      "email": { "type": "string" },
+      "password": { "type": "string" },
+      "otp": { "type": "string" },
+      "headless": { "type": "boolean" },
+      "manual_pause_for_otp": { "type": "boolean" },
+      "telegram_enabled": { "type": "boolean" },
+      "registration_enabled": { "type": "boolean" },
+      "telegram_screenshot_path": { "type": "string" },
+      "solulu_screenshot_path": { "type": "string" },
+      "browser_state_dir": { "type": "string" },
+      "evidence_dir": { "type": "string" }
+    },
+    "required": ["mode"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "ok": { "type": "boolean" },
+      "skill": { "type": "string" },
+      "version": { "type": "string" },
+      "mode": { "type": "string" },
+      "tasks": { "type": "object" },
+      "submission": { "type": "object" },
+      "error": { "type": "string" }
+    }
+  },
+  "compliance_notes": [
+    "This Skill automates the real Solulu registration flow but does not bypass OTP or CAPTCHA.",
+    "This Skill captures real screenshots from an authorized browser session and does not fabricate evidence.",
+    "External brush/follower/member APIs are not executed by this Skill."
+  ]
+}

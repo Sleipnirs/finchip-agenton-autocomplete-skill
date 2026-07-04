@@ -1,0 +1,14 @@
+{
+  "mode": "auto_complete",
+  "email": "your-email@example.com",
+  "password": "Use-A-Strong-Password-123!",
+  "otp": "",
+  "manual_pause_for_otp": true,
+  "headless": false,
+  "telegram_enabled": true,
+  "registration_enabled": true,
+  "evidence_dir": "./evidence",
+  "telegram_screenshot_path": "./evidence/telegram_solulu.png",
+  "solulu_screenshot_path": "./evidence/solulu_uid.png",
+  "browser_state_dir": "./.browser-state"
+}

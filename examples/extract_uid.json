@@ -1,0 +1,9 @@
+{
+  "mode": "extract_uid",
+  "email": "your-email@example.com",
+  "password": "Use-A-Strong-Password-123!",
+  "headless": true,
+  "browser_state_dir": "./.browser-state",
+  "evidence_dir": "./evidence",
+  "solulu_screenshot_path": "./evidence/solulu_uid.png"
+}
